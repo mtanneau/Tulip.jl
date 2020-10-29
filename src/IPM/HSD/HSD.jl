@@ -31,6 +31,14 @@ mutable struct HSD{T, Tv, Tb, Ta, Tk} <: AbstractIPMOptimizer{T}
     regD::Tv  # dual regularization
     regG::T   # gap regularization
 
+    #========================
+        Callback function
+    ========================#
+    # Will be called at the beginning of each iteration,
+    # after checking stopping criterion.
+    # Its signature should be `callback(hsd::HSDSolver{T})` and not return anything
+    callback::Function
+
     function HSD(
         dat::IPMData{T, Tv, Tb, Ta}, kkt_options::KKTOptions{T}
     ) where{T, Tv<:AbstractVector{T}, Tb<:AbstractVector{Bool}, Ta<:AbstractMatrix{T}}
@@ -54,11 +62,14 @@ mutable struct HSD{T, Tv, Tb, Ta, Tk} <: AbstractIPMOptimizer{T}
         kkt = KKT.setup(kkt_options.Factory.T, dat.A; kkt_options.Factory.options...)
         Tk = typeof(kkt)
 
+        callback = h -> nothing
+
         return new{T, Tv, Tb, Ta, Tk}(dat,
             0, Trm_Unknown, Sln_Unknown, Sln_Unknown,
             T(Inf), T(-Inf),
             TimerOutput(),
-            pt, res, kkt, regP, regD, regG
+            pt, res, kkt, regP, regD, regG,
+            callback
         )
     end
 
@@ -314,7 +325,8 @@ function ipm_optimize!(hsd::HSD{T}, params::IPMOptions{T}) where{T}
             break
         end
         
-
+        hsd.callback(hsd)
+        
         # TODO: step
         # For now, include the factorization in the step function
         # Q: should we use more arguments here?

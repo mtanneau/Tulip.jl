@@ -41,6 +41,14 @@ mutable struct MPC{T, Tv, Tb, Ta, Tk} <: AbstractIPMOptimizer{T}
     regP::Tv  # Primal regularization
     regD::Tv  # Dual regularization
 
+    #========================
+        Callback function
+    ========================#
+    # Will be called at the beginning of each iteration,
+    # after checking stopping criterion.
+    # Its signature should be `callback(hsd::HSDSolver{T})` and not return anything
+    callback::Function
+
     function MPC(
         dat::IPMData{T, Tv, Tb, Ta}, kkt_options::KKTOptions{T}
     ) where{T, Tv<:AbstractVector{T}, Tb<:AbstractVector{Bool}, Ta<:AbstractMatrix{T}}
@@ -70,7 +78,8 @@ mutable struct MPC{T, Tv, Tb, Ta, Tk} <: AbstractIPMOptimizer{T}
             T(Inf), T(-Inf),
             TimerOutput(),
             pt, res, Δ, Δc, zero(T), zero(T),
-            kkt, regP, regD
+            kkt, regP, regD,
+            h -> nothing
         )
     end
 
@@ -303,6 +312,7 @@ function ipm_optimize!(mpc::MPC{T}, params::IPMOptions{T}) where{T}
             break
         end
         
+        mpc.callback(mpc)
 
         # TODO: step
         # For now, include the factorization in the step function

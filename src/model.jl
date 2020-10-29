@@ -26,13 +26,14 @@ mutable struct Model{T}
     # If required, the problem is transformed to standard form
     # when instantiating the IPMSolver object.
     solver::Union{Nothing, AbstractIPMOptimizer{T}}
+    callback::Function  # See HSDSolver for details
 
     # Problem solution (in original space)
     solution::Union{Nothing, Solution{T}}
 
     Model{T}() where{T} = new{T}(
         Parameters{T}(), Trm_NotCalled, ProblemData{T}(),
-        nothing, nothing, nothing
+        nothing, nothing, h -> nothing, nothing
     )
 end
 
@@ -129,7 +130,10 @@ function optimize!(model::Model{T}) where{T}
     # Instantiate the IPM solver
     model.params.IPM.OutputLevel = model.params.OutputLevel
     model.solver = instantiate(model.params.IPM.Factory, dat, model.params.KKT)
-
+    
+    # Set callback function
+    model.solver.callback = model.callback
+    
     # Solve the problem
     # TODO: add a try-catch for error handling
     ipm_optimize!(model.solver, model.params.IPM)
