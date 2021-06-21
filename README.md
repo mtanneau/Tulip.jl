@@ -4,7 +4,17 @@
 
  **Documentation** | **Build Status** | **Coverage** |
 |:-----------------:|:----------------:|:------------:|
-| [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://ds4dm.github.io/Tulip.jl/dev/) | [![Build Status](https://travis-ci.com/ds4dm/Tulip.jl.svg?branch=master)](https://travis-ci.com/ds4dm/Tulip.jl) | [![codecov.io](https://codecov.io/github/ds4dm/Tulip.jl/coverage.svg?branch=master)](http://codecov.io/github/ds4dm/Tulip.jl?branch=master)
+| [![Docs][docs-stable-img]][docs-stable-url] [![Docs-dev][docs-dev-img]][docs-dev-url] | [![Build][build-img]][build-url]  | [![Codecov][codecov-img]][codecov-url] |
+
+[docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
+[docs-dev-img]: https://img.shields.io/badge/docs-dev-purple.svg
+[docs-stable-url]: https://ds4dm.github.io/Tulip.jl/stable
+[docs-dev-url]: https://ds4dm.github.io/Tulip.jl/dev/
+
+[build-img]: https://github.com/ds4dm/Tulip.jl/workflows/CI/badge.svg?branch=master
+[build-url]: https://github.com/ds4dm/Tulip.jl/actions?query=workflow%3ACI
+[codecov-img]: https://codecov.io/github/ds4dm/Tulip.jl/coverage.svg?branch=master
+[codecov-url]: https://codecov.io/github/ds4dm/Tulip.jl?branch=master
 
 
 ## Overview
@@ -85,20 +95,23 @@ When using Tulip through JuMP/MOI, parameters can be set either through MOI's ge
 
 ### Parameters description
 
-See the [documentation](https://ds4dm.github.io/Tulip.jl/dev/reference/parameters/).
+See the [documentation](https://ds4dm.github.io/Tulip.jl/stable/reference/options/).
 
 ## Citing `Tulip.jl`
 
-If you use Tulip in your work, we kindly ask that you cite the following reference.
-The PDF is freely available [here](https://www.gerad.ca/fr/papers/G-2019-36/view), and serves as a user manual for advanced users.
+If you use Tulip in your work, we kindly ask that you cite the following [reference](https://doi.org/10.1007/s12532-020-00200-8) (preprint available [here](https://arxiv.org/abs/2006.08814)).
 
 ```
-@TechReport{Tulip.jl,
-    title = {{Tulip}.jl: an open-source interior-point linear optimization
-    solver with abstract linear algebra},
-    url = {https://www.gerad.ca/fr/papers/G-2019-36},
-    Journal = {Les Cahiers du Gerad},
-    Author = {Anjos, Miguel F. and Lodi, Andrea and Tanneau, Mathieu},
-    year = {2019}
+@Article{Tulip.jl,
+  author   = {Tanneau, Mathieu and Anjos, Miguel F. and Lodi, Andrea},
+  journal  = {Mathematical Programming Computation},
+  title    = {Design and implementation of a modular interior-point solver for linear optimization},
+  year     = {2021},
+  issn     = {1867-2957},
+  month    = feb,
+  doi      = {10.1007/s12532-020-00200-8},
+  language = {en},
+  url      = {https://doi.org/10.1007/s12532-020-00200-8},
+  urldate  = {2021-03-07},
 }
 ```

@@ -16,7 +16,6 @@ mutable struct MPC{T, Tv, Tb, Ta, Tk} <: AbstractIPMOptimizer{T}
     primal_status::SolutionStatus     # Primal solution status
     dual_status::SolutionStatus       # Dual   solution status
 
-
     primal_objective::T  # Primal bound: c'x
     dual_objective::T    # Dual bound: b'y + l' zl - u'zu
 
@@ -28,7 +27,7 @@ mutable struct MPC{T, Tv, Tb, Ta, Tk} <: AbstractIPMOptimizer{T}
     pt::Point{T, Tv}       # Current primal-dual iterate
     res::Residuals{T, Tv}  # Residuals at current iterate
 
-    Δ::Point{T, Tv}   # Predictor direction
+    Δ::Point{T, Tv}   # Predictor
     Δc::Point{T, Tv}  # Corrector
 
     # Step sizes
@@ -36,7 +35,14 @@ mutable struct MPC{T, Tv, Tb, Ta, Tk} <: AbstractIPMOptimizer{T}
     αd::T
 
     # Newton system RHS
+    ξp::Tv
+    ξl::Tv
+    ξu::Tv
+    ξd::Tv
+    ξxzl::Tv
+    ξxzu::Tv
 
+    # KKT solver
     kkt::Tk
     regP::Tv  # Primal regularization
     regD::Tv  # Dual regularization
@@ -52,11 +58,11 @@ mutable struct MPC{T, Tv, Tb, Ta, Tk} <: AbstractIPMOptimizer{T}
     function MPC(
         dat::IPMData{T, Tv, Tb, Ta}, kkt_options::KKTOptions{T}
     ) where{T, Tv<:AbstractVector{T}, Tb<:AbstractVector{Bool}, Ta<:AbstractMatrix{T}}
-        
+
         m, n = dat.nrow, dat.ncol
         p = sum(dat.lflag) + sum(dat.uflag)
 
-        # Allocate some memory
+        # Working memory
         pt  = Point{T, Tv}(m, n, p, hflag=false)
         res = Residuals(
             tzeros(Tv, m), tzeros(Tv, n), tzeros(Tv, n),
@@ -65,6 +71,14 @@ mutable struct MPC{T, Tv, Tb, Ta, Tk} <: AbstractIPMOptimizer{T}
         )
         Δ  = Point{T, Tv}(m, n, p, hflag=false)
         Δc = Point{T, Tv}(m, n, p, hflag=false)
+
+        # Newton RHS
+        ξp = tzeros(Tv, m)
+        ξl = tzeros(Tv, n)
+        ξu = tzeros(Tv, n)
+        ξd = tzeros(Tv, n)
+        ξxzl = tzeros(Tv, n)
+        ξxzu = tzeros(Tv, n)
 
         # Initial regularizations
         regP = tones(Tv, n)
@@ -78,8 +92,9 @@ mutable struct MPC{T, Tv, Tb, Ta, Tk} <: AbstractIPMOptimizer{T}
             T(Inf), T(-Inf),
             TimerOutput(),
             pt, res, Δ, Δc, zero(T), zero(T),
+            ξp, ξl, ξu, ξd, ξxzl, ξxzu,
             kkt, regP, regD,
-            h -> nothing
+            h -> nothing,
         )
     end
 
@@ -169,7 +184,7 @@ function update_solver_status!(mpc::MPC{T}, ϵp::T, ϵd::T, ϵg::T, ϵi::T) wher
     else
         mpc.dual_status = Sln_Unknown
     end
-    
+
     # Check for optimal solution
     if ρp <= ϵp && ρd <= ϵd && ρg <= ϵg
         mpc.primal_status = Sln_Optimal
@@ -177,7 +192,7 @@ function update_solver_status!(mpc::MPC{T}, ϵp::T, ϵd::T, ϵg::T, ϵi::T) wher
         mpc.solver_status = Trm_Optimal
         return nothing
     end
-    
+
     # TODO: Primal/Dual infeasibility detection
     # Check for infeasibility certificates
     if max(
@@ -266,12 +281,12 @@ function ipm_optimize!(mpc::MPC{T}, params::IPMOptions{T}) where{T}
         if params.OutputLevel > 0
             # Display log
             @printf "%4d" mpc.niter
-            
+
             # Objectives
             ϵ = dat.objsense ? one(T) : -one(T)
             @printf "  %+14.7e" ϵ * mpc.primal_objective
             @printf "  %+14.7e" ϵ * mpc.dual_objective
-            
+
             # Residuals
             @printf "  %8.2e" max(mpc.res.rp_nrm, mpc.res.rl_nrm, mpc.res.ru_nrm)
             @printf " %8.2e" mpc.res.rd_nrm
@@ -304,14 +319,14 @@ function ipm_optimize!(mpc::MPC{T}, params::IPMOptions{T}) where{T}
             || mpc.solver_status == Trm_DualInfeasible
         )
             break
-        elseif mpc.niter >= params.IterationsLimit 
+        elseif mpc.niter >= params.IterationsLimit
             mpc.solver_status = Trm_IterationLimit
             break
         elseif ttot >= params.TimeLimit
             mpc.solver_status = Trm_TimeLimit
             break
         end
-        
+
         mpc.callback(mpc)
 
         # TODO: step
@@ -324,7 +339,7 @@ function ipm_optimize!(mpc::MPC{T}, params::IPMOptions{T}) where{T}
             if isa(err, PosDefException) || isa(err, SingularException)
                 # Numerical trouble while computing the factorization
                 mpc.solver_status = Trm_NumericalProblem
-    
+
             elseif isa(err, OutOfMemoryError)
                 # Out of memory
                 mpc.solver_status = Trm_MemoryLimit
@@ -338,16 +353,13 @@ function ipm_optimize!(mpc::MPC{T}, params::IPMOptions{T}) where{T}
 
             break
         end
-
         mpc.niter += 1
-
     end
-    
+
     # TODO: print message based on termination status
     params.OutputLevel > 0 && println("Solver exited with status $((mpc.solver_status))")
 
     return nothing
-
 end
 
 function compute_starting_point(mpc::MPC{T}) where{T}
@@ -361,7 +373,7 @@ function compute_starting_point(mpc::MPC{T}) where{T}
     # Get initial iterate
     KKT.solve!(zeros(T, n), pt.y, mpc.kkt, false .* mpc.dat.b, mpc.dat.c)  # For y
     KKT.solve!(pt.x, zeros(T, m), mpc.kkt, mpc.dat.b, false .* mpc.dat.c)  # For x
-    
+
     # I. Recover positive primal-dual coordinates
     δx = one(T) + max(
         zero(T),
@@ -385,11 +397,11 @@ function compute_starting_point(mpc::MPC{T}) where{T}
     =#
     pt.zl .= ( z ./ (dat.lflag + dat.uflag)) .* dat.lflag
     pt.zu .= (-z ./ (dat.lflag + dat.uflag)) .* dat.uflag
-    
+
     δz = one(T) + max(zero(T), (-3 // 2) * minimum(pt.zl), (-3 // 2) * minimum(pt.zu))
     pt.zl[dat.lflag] .+= δz
     pt.zu[dat.uflag] .+= δz
-    
+
     mpc.pt.τ   = one(T)
     mpc.pt.κ   = zero(T)
 

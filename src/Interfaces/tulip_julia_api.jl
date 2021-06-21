@@ -18,7 +18,9 @@ function load_problem!(m::Model{T}, fname::String) where{T}
     Base.empty!(m)
 
     dat = with_logger(Logging.NullLogger()) do
-        readqps(fname, mpsformat=:free)
+        _open(fname) do io
+            readqps(io, mpsformat=:free)
+        end
     end
 
     # TODO: avoid allocations when T is Float64
@@ -119,7 +121,7 @@ Set the lower bound of constraint `i` in model `m` to `lb`.
 """
 function set_attribute(m::Model{T}, ::ConstraintLowerBound, i::Int, lb::T) where{T}
     # sanity checks
-    1 <= i <= m.pbdata.nvar || error("Invalid constraint index $i")
+    1 <= i <= m.pbdata.ncon || error("Invalid constraint index $i")
 
     # Update bound
     m.pbdata.lcon[i] = lb
@@ -133,7 +135,7 @@ Set the upper bound of constraint `i` in model `m` to `ub`.
 """
 function set_attribute(m::Model{T}, ::ConstraintUpperBound, i::Int, ub::T) where{T}
     # sanity checks
-    1 <= i <= m.pbdata.nvar || error("Invalid constraint index $i")
+    1 <= i <= m.pbdata.ncon || error("Invalid constraint index $i")
 
     # Update bound
     m.pbdata.ucon[i] = ub

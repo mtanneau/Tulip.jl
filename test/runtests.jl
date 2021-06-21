@@ -1,38 +1,51 @@
-using Test
-
 using LinearAlgebra
 using SparseArrays
+using Test
+using TOML
 
 using Tulip
 TLP = Tulip
 
 import Convex
 
-const TvTYPES = [Float64, BigFloat]
+const TvTYPES = [Float32, Float64, BigFloat]
 
-# write your own tests here
-const testdir = dirname(@__FILE__)
+# Check That Tulip.version() matches what's in the Project.toml
+@testset "Tulip" begin
 
+tlp_ver = Tulip.version()
+toml_ver = TOML.parsefile("../Project.toml")["version"]
+@test tlp_ver == VersionNumber(toml_ver)
 
 @testset "Unit tests" begin
-    include("Core/problemData.jl")
-    include("IPM/HSD.jl")
-    include("IPM/MPC.jl")
-end
 
-@testset "KKT" begin
-    include("KKT/KKT.jl")
-end
+    @testset "Core" begin
+        include("Core/problemData.jl")
+    end
 
-@testset "Presolve" begin
-    include("Presolve/presolve.jl")
-end
+    @testset "IPM" begin
+        include("IPM/HSD.jl")
+        include("IPM/MPC.jl")
+    end
+
+    @testset "KKT" begin
+        include("KKT/KKT.jl")
+    end
+
+    @testset "Presolve" begin
+        include("Presolve/presolve.jl")
+    end
+end  # UnitTest
 
 @testset "Examples" begin
     include("examples.jl")
 end
 
 @testset "Interfaces" begin
+    include("Interfaces/julia_api.jl")
+end
+
+@testset "MOI" begin
     include("Interfaces/MOI_wrapper.jl")
 end
 
@@ -45,3 +58,5 @@ end
         end
     end
 end
+
+end  # Tulip tests
